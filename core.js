@@ -292,9 +292,11 @@ class Workspace {
     g += `<circle cx="${x1}" cy="${y1}" r="5.5" fill="#fff" stroke="${col}" stroke-width="3" opacity="${op}"/>`;   // tail = hollow dot
     if (sel && editable) g += `<circle cx="${x2}" cy="${y2}" r="13" fill="none" stroke="${col}" stroke-width="2" stroke-dasharray="3 3"/>`;
     // invisible hit areas (tail/body first, head handle on top)
-    g += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000" stroke-opacity="0" stroke-width="24" pointer-events="stroke"/>`;
-    g += `<circle cx="${x1}" cy="${y1}" r="12" fill="#000" fill-opacity="0" pointer-events="all" data-part="body"/>`;
-    g += `<circle cx="${x2}" cy="${y2}" r="15" fill="#000" fill-opacity="0" pointer-events="all" data-part="head"/>`;
+    // hit areas keep a finger-sized footprint on screen even when the SVG is scaled down (phones)
+    const k = Math.max(1, (this.o.W * S) / (this.svg.clientWidth || this.o.W * S));
+    g += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000" stroke-opacity="0" stroke-width="${24 * k}" stroke-linecap="round" pointer-events="stroke"/>`;
+    g += `<circle cx="${x1}" cy="${y1}" r="${12 * k}" fill="#000" fill-opacity="0" pointer-events="all" data-part="body"/>`;
+    g += `<circle cx="${x2}" cy="${y2}" r="${15 * k}" fill="#000" fill-opacity="0" pointer-events="all" data-part="head"/>`;
     if (!v.noLabel) {
       let ux = 1, uy = 0; if (len > 3) { ux = (x2 - x1) / len; uy = (y2 - y1) / len; }
       let nx = uy, ny = -ux; if (ny > 0.001 || (Math.abs(ny) <= 0.001 && nx < 0)) { nx = -nx; ny = -ny; }

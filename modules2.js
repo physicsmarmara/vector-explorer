@@ -54,7 +54,8 @@ function m5Init() {
   if (!s.ch) { s.ch = defaultChallenge(); s.hist = new Hist(() => s.ch.vectors, v => { s.ch.vectors = v; }); }
   return s;
 }
-function m5StartStudent(s) {
+function m5StartStudent(s, preview = false) {   // preview: maker testing own challenge (may reveal the answer)
+  s.preview = preview;
   const vectors = s.ch.vectors.map(v => Object.assign(clone(v), { id: uid(), role: 'main' }));
   s.sm = { vectors }; s.sinit = clone(vectors);
   s.shist = new Hist(() => s.sm.vectors, v => { s.sm.vectors = v; });
@@ -63,11 +64,11 @@ function m5StartStudent(s) {
 
 function modWrap5(root) {
   const s = m5Init();
-  root.append(mhead(tx('Öğretmen Etkinlik Alanı', 'Teacher Challenge Builder'),
-    tx('Etkinlik tasarlayın, kaydedin, bağlantıyla veya dosyayla paylaşın; öğrenci modunda cevabı görmeden çözün.', 'Design a challenge, save it and share it by link or file; students solve it in Student Mode without seeing the answer.')));
+  root.append(mhead(tx('Soru Hazırla', 'Make a Challenge'),
+    tx('Boş alanda sürükleyerek kendi vektörlerinizi çizin, yönergeyi yazın, bağlantıyla veya dosyayla arkadaşlarınıza gönderin; çözücü modunda cevabı görmeden çözülür.', 'Draw your own vectors by dragging on empty space, write the instruction and send it to friends by link or file; they solve it in Solver Mode without seeing the answer.')));
   root.append(h('div', { class: 'sub-tabs' }, h('div', { class: 'seg', style: 'width:100%;max-width:520px' },
-    h('button', { class: s.mode === 'teacher' ? 'on' : '', onclick: () => { s.mode = 'teacher'; rerender(); } }, '🧑‍🏫 ' + tx('Öğretmen Modu', 'Teacher Mode')),
-    h('button', { class: s.mode === 'student' ? 'on' : '', onclick: () => { m5StartStudent(s); rerender(); } }, '🎓 ' + tx('Öğrenci Modu', 'Student Mode')))));
+    h('button', { class: s.mode === 'teacher' ? 'on' : '', onclick: () => { s.mode = 'teacher'; rerender(); } }, '✏️ ' + tx('Soru Hazırla', 'Make')),
+    h('button', { class: s.mode === 'student' ? 'on' : '', onclick: () => { m5StartStudent(s, true); rerender(); } }, '🎓 ' + tx('Çözücü Modu', 'Solver Mode')))));
   s.mode === 'teacher' ? m5Teacher(root, s) : m5Student(root, s);
 }
 
@@ -85,7 +86,11 @@ function m5Teacher(root, s) {
     onReset: () => { s.ch = defaultChallenge(); s.hist = new Hist(() => s.ch.vectors, v => { s.ch.vectors = v; }); rerender(); },
     refresh: () => renderProps(),
     ws: {
-      editHead: () => true,
+      draw: 'free', editHead: () => true,
+      onDraw: d => {      // draw your own vector by dragging on empty space
+        const v = mk(nextName(ch.vectors), d.tail, d.comp, COL[ch.vectors.length % COL.length], { fixed: true, movable: true, include: ch.type === 'sum' });
+        ch.vectors.push(v); fit(v); lab.ws.sel = v.id; commit(); rerender();
+      },
       vecStyle: v => ({ op: ch.type === 'sum' && !v.include ? 0.55 : 1 }),
       onCommit: () => commit(), onSelect: () => setTimeout(renderProps)
     }
@@ -163,7 +168,7 @@ function m5Teacher(root, s) {
     h('label', { class: 'mut' }, tx('Yönerge (İngilizce)', 'Instruction (English)'), h('textarea', { oninput: e => { ch.textEn = e.target.value; } }, ch.textEn)),
     h('div', { class: 'grid2' },
       b('＋ ' + tx('Vektör Ekle', 'Add Vector'), () => { const v = mk(nextName(ch.vectors), { x: rnd(3, 18), y: rnd(3, 11) }, { x: rnd(1, 4), y: rnd(-3, 3) || 2 }, COL[ch.vectors.length % COL.length], { fixed: true, movable: true, include: ch.type === 'sum' }); ch.vectors.push(v); lab.ws.sel = v.id; commit(); rerender(); }, 'pri'),
-      b('▶ ' + tx('Öğrenci Olarak Dene', 'Preview as Student'), () => { m5StartStudent(s); rerender(); }, 'dark')),
+      b('▶ ' + tx('Öğrenci Olarak Dene', 'Preview as Student'), () => { m5StartStudent(s, true); rerender(); }, 'dark')),
     h('h3', null, tx('Seçili vektör özellikleri', 'Selected vector properties')), props,
     h('div', { class: 'grid2' },
       b('💾 ' + tx('Kaydet', 'Save'), save), b('📤 ' + tx('Dosyaya Aktar', 'Export JSON'), exportJson),
@@ -228,7 +233,7 @@ function m5Student(root, s) {
     h('div', { class: 'task' }, ch.title ? h('div', { class: 'mut' }, esc(ch.title)) : null, h('div', { class: 'big' }, chText(ch))),
     h('div', { class: 'mut' }, sc ? tx('Cevap vektörünü boş alanda sürükleyerek çizin.', 'Draw your answer vector by dragging on empty space.') : tx('Vektörleri uç uca ekleyin ve bileşkeyi kendiniz çizin.', 'Join the vectors head-to-tail and draw the resultant yourself.')),
     sc ? null : h('label', { class: 'chk' }, zero, tx('Bileşke sıfır vektörüdür', 'The resultant is the zero vector')),
-    h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'button', onclick: doCheck }, '✔ ' + tx('Kontrol Et', 'Check')), showBtn, hintBtn(s, hints, fbEl)),
+    h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'button', onclick: doCheck }, '✔ ' + tx('Kontrol Et', 'Check')), s.preview ? showBtn : null, hintBtn(s, hints, fbEl)),
     fbEl, h('h3', null, tx('Seçili vektör', 'Selected vector')), info);
   info.innerHTML = vecInfo(null);
 }
@@ -550,7 +555,7 @@ const MODS = [
   { fn: modWrap2, tr: 'Kendi Vektörünü Oluştur', en: 'Create Your Own Vector' },
   { fn: modWrap3, tr: 'Vektörleri Toplayalım', en: 'Vector Addition Laboratory' },
   { fn: modWrap4, tr: 'Paralelkenar Yöntemi', en: 'Parallelogram Method' },
-  { fn: modWrap5, tr: 'Öğretmen Etkinlik Alanı', en: 'Teacher Challenge Builder' },
+  { fn: modWrap5, tr: 'Soru Hazırla', en: 'Make a Challenge' },
   { fn: modWrap6, tr: 'Tahmin Et, Dene, Açıkla', en: 'Predict, Test, Explain' },
   { fn: modWrap7, tr: 'Kendini Test Et', en: 'Test Yourself' }
 ];
